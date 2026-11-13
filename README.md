@@ -19,7 +19,7 @@
 
 A3 宽 1190.6pt，但左栏实际写到 619.4pt。差的这 24pt 正好是一个汉字宽，这就是「字被切断」的真正原因。
 
-> 不想自己跑？有代切服务，在线说明页：https://wbapp-gby0ngpwa3zwqbmb34cfjh.app.workbuddy.host/?sharecode=EVWIMGSIFI
+> 不想自己跑？在线版：<https://a3.ydtgo.top/>（工具在 <https://a3.ydtgo.top/tool.html>，文件不出浏览器）
 
 ## 安装到 WorkBuddy
 
@@ -34,7 +34,7 @@ A3 宽 1190.6pt，但左栏实际写到 619.4pt。差的这 24pt 正好是一个
 
 ### 0. 浏览器版（零安装，文件不出浏览器）
 
-打开 <https://wbapp-gby0ngpwa3zwqbmb34cfjh.app.workbuddy.host/tool.html?sharecode=EVWIMGSIFI>
+打开 <https://a3.ydtgo.top/tool.html>
 （或直接用 `pub/tool.html` 单文件，双击即可，断网也能跑）：
 
 拖入 A3 的 PDF → 自动识别双栏切口 → 需要时可以拖滑块微调 → 输出 A4。

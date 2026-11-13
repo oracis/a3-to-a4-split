@@ -75,15 +75,62 @@ def main():
     with open(os.path.join(DST, 'index.html'), 'w', encoding='utf-8', newline='\n') as f:
         f.write(page)
 
-    # ---------- 3) 自检 ----------
-    for name in ('index.html', 'tool.html'):
+    # ---------- 3) 404 页（静态托管的 ErrorDocument） ----------
+    notfound = """<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>页面不存在 · 试卷 A3 拆 A4</title>
+<style>
+  :root{--ink:#1a2233;--ink-3:#6b7688;--accent:#2563eb;--line:#e3e7ee;--bg:#f6f8fb;}
+  *{box-sizing:border-box;}
+  body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;
+       padding:32px 20px;background:var(--bg);color:var(--ink);
+       font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+       -webkit-font-smoothing:antialiased;}
+  .card{width:100%;max-width:520px;background:#fff;border:1px solid var(--line);border-radius:16px;
+        padding:40px 36px;box-shadow:0 10px 32px rgba(20,35,70,.06);}
+  .code{font-size:52px;font-weight:700;letter-spacing:.02em;color:var(--accent);
+        font-variant-numeric:tabular-nums;line-height:1;margin-bottom:14px;}
+  h1{font-size:19px;margin:0 0 10px;}
+  p{margin:0 0 26px;font-size:14.5px;line-height:1.75;color:var(--ink-3);}
+  .acts{display:flex;flex-wrap:wrap;gap:10px;}
+  a.btn{display:inline-block;padding:10px 18px;border-radius:9px;font-size:14.5px;
+        text-decoration:none;font-weight:500;}
+  a.pri{background:var(--accent);color:#fff;}
+  a.sec{border:1px solid var(--line);color:var(--ink);}
+  .tip{margin-top:24px;padding-top:18px;border-top:1px solid var(--line);
+       font-size:12.5px;color:#98a2b3;line-height:1.7;}
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="code">404</div>
+    <h1>这个地址没有页面</h1>
+    <p>可能是链接少了一段，或者文件名拼错了。你要找的两样东西都还在：</p>
+    <div class="acts">
+      <a class="btn pri" href="index.html">回首页</a>
+      <a class="btn sec" href="tool.html">打开在线切割工具</a>
+    </div>
+    <div class="tip">在线工具完全在浏览器里运行，试卷不会上传到任何服务器。</div>
+  </div>
+</body>
+</html>
+"""
+    with open(os.path.join(DST, '404.html'), 'w', encoding='utf-8', newline='\n') as f:
+        f.write(notfound)
+
+    # ---------- 4) 自检 ----------
+    for name in ('index.html', 'tool.html', '404.html'):
         p = os.path.join(DST, name)
         text = read(p)
         ext = re.findall(r'<script[^>]+src=', text) + re.findall(r'<link[^>]+href="(?!data:)', text)
         print('%-12s %6.2f MB  外链资源 %d 处' % (
             name, os.path.getsize(p) / 1024 / 1024, len(ext)))
-    if os.listdir(DST) != ['index.html', 'tool.html']:
-        print('注意：pub/ 里还有其它文件', os.listdir(DST))
+    extra = [f for f in os.listdir(DST) if f not in ('index.html', 'tool.html', '404.html')]
+    if extra:
+        print('注意：pub/ 里还有其它文件', extra)
     return 0
 
 

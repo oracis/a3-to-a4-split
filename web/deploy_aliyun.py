@@ -3,10 +3,13 @@
     python web/deploy_aliyun.py            # 上传 + 回读校验 + 匿名访问检查
     python web/deploy_aliyun.py --dry-run  # 只打印将要做什么，不发写请求
 
-为什么单独写一个而不是直接用 skill 里的 deploy_oss.py：
-1. 那个脚本不压 gzip。tool.html 有 1.9MB（pdf.js + pdf-lib 全内联），
-   香港到大陆不压缩要 8 秒；gzip 后 583KB，2 秒出头。
-2. 这里把「域名 + 桶 + 证书」写死成本项目的常量，避免每次手敲参数敲错。
+缓存策略分两类：
+- HTML 一律 no-cache：改完立刻生效，否则手机上会拿着旧页面用。
+- vendor/ 下的依赖文件名带内容指纹（pdf.min.96de3233.js），内容一变文件名就变，
+  所以可以设一年 immutable，二次访问直接走本地缓存，一个字节都不用下。
+
+gzip 对所有 HTML 和 JS 都开：pdf.js 主包 312KB→87KB，worker 1062KB→285KB，
+香港到大陆的链路上这一层压缩比什么优化都实在。
 
 前提（都在阿里云控制台一次性配好，脚本不碰）：
 - 桶 a3-paper-split-hk / 香港地域 / ACL public-read / BlockPublicAccess 已关；
@@ -31,13 +34,19 @@ BUCKET = 'a3-paper-split-hk'
 REGION = 'cn-hongkong'
 SITE = 'https://a3.ydtgo.top'
 
-# 文件 -> (Content-Type, Cache-Control)
-# html 一律 no-cache：改完立刻生效，否则手机上会拿着旧页面用
-RULES = {
-    'index.html': ('text/html; charset=utf-8', 'no-cache'),
-    'tool.html': ('text/html; charset=utf-8', 'no-cache'),
-    '404.html': ('text/html; charset=utf-8', 'no-cache'),
+REQUIRED = ('index.html', 'tool.html', 'offline.html', '404.html')
+
+CTYPE = {
+    '.html': 'text/html; charset=utf-8',
+    '.js': 'text/javascript; charset=utf-8',
+    '.png': 'image/png',
+    '.svg': 'image/svg+xml',
+    '.ico': 'image/x-icon',
+    '.json': 'application/json; charset=utf-8',
 }
+
+CACHE_HTML = 'no-cache'
+CACHE_ASSET = 'public, max-age=31536000, immutable'
 
 
 def clear_proxy():
@@ -52,6 +61,21 @@ def clear_proxy():
         print('[i] 已清除代理环境变量（本机代理会搞挂 oss2）：%s' % ', '.join(dropped))
 
 
+def collect(src):
+    """遍历 pub/（含 vendor/ 子目录），返回 [(key, path, ctype, cache)]"""
+    items = []
+    for dirpath, _, filenames in os.walk(src):
+        for fn in filenames:
+            full = os.path.join(dirpath, fn)
+            key = os.path.relpath(full, src).replace(os.sep, '/')
+            ext = os.path.splitext(fn)[1].lower()
+            ctype = CTYPE.get(ext, 'application/octet-stream')
+            # 带指纹的静态资源才给强缓存；HTML 永远不缓存
+            cache = CACHE_ASSET if key.startswith('vendor/') else CACHE_HTML
+            items.append((key, full, ctype, cache))
+    return sorted(items, key=lambda x: x[0])
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--dry-run', action='store_true')
@@ -62,8 +86,9 @@ def main():
         print('× 找不到 %s，先跑：python web/build_public.py' % SRC)
         return 2
 
-    files = [f for f in sorted(os.listdir(SRC)) if f in RULES]
-    missing = [f for f in RULES if f not in files]
+    items = collect(SRC)
+    keys = [k for k, _, _, _ in items]
+    missing = [f for f in REQUIRED if f not in keys]
     if missing:
         print('× pub/ 缺文件：%s' % ', '.join(missing))
         return 2
@@ -81,16 +106,17 @@ def main():
     print('桶=%s  地域=%s' % (BUCKET, REGION))
 
     total_raw = total_sent = 0
-    for name in files:
-        path = os.path.join(SRC, name)
+    for key, path, ctype, cache in items:
         raw = open(path, 'rb').read()
-        ctype, cache = RULES[name]
         headers = {'Content-Type': ctype, 'Cache-Control': cache}
 
         body = raw
-        if not args.no_gzip and name.endswith('.html'):
-            body = gzip.compress(raw, 9)
-            headers['Content-Encoding'] = 'gzip'
+        compressible = key.endswith(('.html', '.js', '.json', '.svg'))
+        if not args.no_gzip and compressible and len(raw) > 1024:
+            gz = gzip.compress(raw, 9)
+            if len(gz) < len(raw):
+                body = gz
+                headers['Content-Encoding'] = 'gzip'
 
         md5 = hashlib.md5(body).hexdigest()
         ratio = 100.0 * (1 - len(body) / len(raw)) if raw else 0
@@ -98,16 +124,16 @@ def main():
         total_sent += len(body)
 
         if args.dry_run:
-            print('  [dry-run] PUT %-12s %8.1f KB -> %7.1f KB (-%.0f%%)'
-                  % (name, len(raw) / 1024, len(body) / 1024, ratio))
+            print('  [dry-run] PUT %-34s %8.1f KB -> %7.1f KB (-%.0f%%)'
+                  % (key, len(raw) / 1024, len(body) / 1024, ratio))
             continue
 
-        bucket.put_object(name, body, headers=headers)
+        bucket.put_object(key, body, headers=headers)
         # 回读比对 md5：比字节数可靠，能抓到「传了但内容不对」
-        got = bucket.head_object(name).etag.strip('"').lower()
+        got = bucket.head_object(key).etag.strip('"').lower()
         flag = '✓' if got == md5 else '×'
-        print('  %s %-12s %8.1f KB -> %7.1f KB (-%.0f%%)  md5=%s'
-              % (flag, name, len(raw) / 1024, len(body) / 1024, ratio, got[:12]))
+        print('  %s %-34s %8.1f KB -> %7.1f KB (-%.0f%%)  md5=%s'
+              % (flag, key, len(raw) / 1024, len(body) / 1024, ratio, got[:12]))
         if got != md5:
             print('    线上 md5 %s != 本地 %s' % (got, md5))
             return 1
@@ -120,14 +146,19 @@ def main():
     # 匿名访问检查：不带任何凭证、绕开代理，模拟真实访客
     print('匿名访问检查：')
     import urllib.request
-    for key in ('index.html', 'tool.html'):
+    probe = ['index.html', 'tool.html', 'offline.html']
+    probe += [k for k in keys if k.startswith('vendor/')]
+    for key in probe:
         url = 'https://%s.oss-%s.aliyuncs.com/%s' % (BUCKET, REGION, key)
         req = urllib.request.Request(url, headers={'User-Agent': 'deploy-check',
                                                    'Accept-Encoding': 'identity'})
         try:
             with urllib.request.urlopen(req, timeout=30) as r:
                 n = len(r.read())
-                print('  ✓ %s HTTP %d  %d 字节' % (url, r.status, n))
+                cc = r.headers.get('Cache-Control', '')
+                ce = r.headers.get('Content-Encoding', '')
+                print('  ✓ %-34s HTTP %d  %7.1f KB  %s%s'
+                      % (key, r.status, n / 1024, cc, ' gzip' if ce == 'gzip' else ''))
         except Exception as e:
             print('  × %s 失败：%s' % (url, str(e)[:120]))
             print('    多半是桶 ACL 不是 public-read，或 BlockPublicAccess 又开了')

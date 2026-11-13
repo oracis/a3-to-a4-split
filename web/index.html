@@ -239,7 +239,6 @@
 </div>
 
 <script src="vendor/pdf.min.js"></script>
-<script src="vendor/pdf-lib.min.js"></script>
 <script src="split_core.js"></script>
 <script>
 (function () {
@@ -250,8 +249,33 @@
   var optPanel = $('optPanel'), optMarks = $('optMarks'), optStrip = $('optStrip'), optHint = $('optHint');
   var warnHost = $('warnHost');
 
-  var PDFLib = window.PDFLib;
-  var splitter = window.createSplitter(PDFLib);
+  /* pdf-lib 压缩后 202KB，只有真正要分析/切分时才用得上，首屏不下载它。
+     单文件离线版（offline.html）把它内联在页面里，window.PDFLib 一开始就存在，
+     下面的检查会直接跳过加载，所以同一份代码两种形态都能跑。 */
+  var PDF_LIB_URL = 'vendor/pdf-lib.min.js';
+  var splitter = null;
+
+  function loadScriptOnce(url, globalName) {
+    return new Promise(function (resolve, reject) {
+      var s = document.createElement('script');
+      s.src = url;
+      s.async = true;
+      s.onload = function () {
+        if (window[globalName]) resolve();
+        else reject(new Error('脚本已下载但没挂上 ' + globalName));
+      };
+      s.onerror = function () { reject(new Error('下载失败：' + url)); };
+      document.head.appendChild(s);
+    });
+  }
+
+  async function ensureSplitter() {
+    if (splitter) return splitter;
+    if (!window.PDFLib) await loadScriptOnce(PDF_LIB_URL, 'PDFLib');
+    splitter = window.createSplitter(window.PDFLib);
+    return splitter;
+  }
+
   var srcBytes = null, fileName = '', analysis = null, overrides = {}, pdfDoc = null;
   var busy = false;
 
@@ -445,6 +469,15 @@
 
     try {
       markDropLoaded(fileName);
+      tip.textContent = '正在加载切分组件…';
+      try {
+        await ensureSplitter();
+      } catch (e) {
+        showErr('切分组件没加载出来（多半是网络不稳）。刷新页面再试一次。');
+        pagesHost.innerHTML = '';
+        return;
+      }
+      tip.textContent = '正在分析页面…';
       pdfDoc = await pdfjsLib.getDocument({ data: srcBytes.slice() }).promise;
       if (pdfDoc.numPages > 40) throw new Error('PDF 有 ' + pdfDoc.numPages + ' 页，浏览器版本建议单次不超过 40 页');
       await refresh();
@@ -458,7 +491,8 @@
 
   async function refresh() {
     var opts = { keepMarks: !optMarks.checked, keepStrip: !optStrip.checked };
-    analysis = await splitter.analyze(srcBytes, opts);
+    var sp = await ensureSplitter();
+    analysis = await sp.analyze(srcBytes, opts);
     overrides = {};
     optPanel.classList.remove('hidden');
     showWarns(analysis.warnings);
@@ -572,7 +606,8 @@
         keepMarks: !optMarks.checked,
         keepStrip: !optStrip.checked
       };
-      var res = await splitter.splitPdf(srcBytes, opts);
+      var sp = await ensureSplitter();
+      var res = await sp.splitPdf(srcBytes, opts);
       var ms = Math.round(performance.now() - t0);
       await showResult(res, ms);
     } catch (e) {

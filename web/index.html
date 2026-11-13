@@ -104,6 +104,53 @@
   details summary{cursor:pointer;color:var(--ink);}
   details p{margin:8px 0 0;font-size:13.5px;}
   .hidden{display:none!important;}
+
+  /* 免费额度提示 */
+  .quota{
+    display:inline-flex;align-items:center;gap:5px;font-size:12px;
+    color:var(--ink-2);background:#fff;border:1px solid var(--line);
+    border-radius:999px;padding:4px 12px;margin-top:12px;
+  }
+  .quota b{color:var(--accent);font-variant-numeric:tabular-nums;font-weight:600;}
+  .quota.zero{border-color:#fecaca;background:#fef2f2;color:#b91c1c;}
+  .quota.zero b{color:var(--red);}
+
+  /* 额度用尽的引导层 */
+  .mask{
+    position:fixed;top:0;right:0;bottom:0;left:0;z-index:99;
+    background:rgba(15,23,42,.55);display:flex;align-items:center;justify-content:center;
+    padding:20px;-webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px);
+  }
+  .sheet{
+    width:100%;max-width:432px;background:#fff;border-radius:16px;padding:26px 24px 22px;
+    box-shadow:0 18px 50px rgba(15,23,42,.28);
+  }
+  .sheet h3{font-size:18px;margin:0 0 10px;line-height:1.4;}
+  .sheet .lead{font-size:13.5px;line-height:1.78;color:var(--ink-2);margin:0 0 16px;}
+  .wx-row{
+    display:flex;align-items:center;gap:10px;background:var(--bg-soft);
+    border:1px solid var(--line);border-radius:10px;padding:11px 14px;margin-bottom:16px;
+  }
+  .wx-row .lb{font-size:12px;color:var(--ink-3);}
+  .wx-row .id{font-size:17px;font-weight:600;letter-spacing:.02em;color:var(--ink);flex:1;}
+  .wx-row button{
+    border:1px solid #bfd2ff;background:#fff;color:var(--accent);border-radius:7px;
+    padding:5px 12px;font-size:12.5px;cursor:pointer;white-space:nowrap;
+  }
+  .wx-row button:hover{background:var(--accent-soft);}
+  .sheet .acts{display:flex;flex-direction:column;gap:9px;}
+  .sheet .acts button{
+    width:100%;border:0;border-radius:10px;padding:12px;font-size:14.5px;
+    cursor:pointer;font-weight:600;
+  }
+  .sheet .acts .pri{background:var(--accent);color:#fff;}
+  .sheet .acts .pri:hover{background:#1d4ed8;}
+  .sheet .acts .sec{
+    background:#fff;color:var(--ink-3);border:1px solid var(--line);
+    font-weight:400;font-size:13.5px;padding:10px;
+  }
+  .sheet .foot{font-size:11.5px;color:#98a2b3;margin:14px 0 0;line-height:1.75;}
+
   @media (max-width:640px){
     .wrap{padding:20px 14px 48px;}
     h1{font-size:21px;}
@@ -121,6 +168,7 @@
     切口按<b>两栏真实边框</b>定，不按页面中线切——所以不会出现「需要药粉多少千」被切断成「多少克」。
     全部在<b>你自己的浏览器里</b>完成，文件不会上传到任何服务器。
   </p>
+  <div class="quota" id="quotaPill">剩余免费额度 <b id="quotaLeft">3</b> 次</div>
 </header>
 
 <div class="drop" id="drop">
@@ -147,7 +195,8 @@
 <div class="out hidden" id="outHost"></div>
 
 <footer>
-  开源免费（MIT）：<a href="https://github.com/oracis/a3-to-a4-split" target="_blank" rel="noopener">github.com/oracis/a3-to-a4-split</a>
+  项目开源（MIT）：<a href="https://github.com/oracis/a3-to-a4-split" target="_blank" rel="noopener">github.com/oracis/a3-to-a4-split</a>
+  · 本站保留 3 次免费额度，用完加微信续
   · 一次几十套、不想自己动手，可以<a href="index.html">代切</a>
   <details>
     <summary>跟其他工具的区别在哪？</summary>
@@ -159,6 +208,28 @@
   </details>
 </footer>
 
+</div>
+
+<div class="mask hidden" id="payMask" role="dialog" aria-modal="true" aria-labelledby="payTitle">
+  <div class="sheet">
+    <h3 id="payTitle">免费额度用完了</h3>
+    <p class="lead" id="payLead">
+      这个工具没有订阅、不用登录，只留 3 次免费额度给偶尔改一两份的老师。加个微信，我再给你 3 次。
+    </p>
+    <div class="wx-row">
+      <span class="lb">微信</span>
+      <span class="id">jieshizhe</span>
+      <button type="button" id="copyWx">复制</button>
+    </div>
+    <div class="acts">
+      <button type="button" class="pri" id="grantMore">已加微信，再给我 3 次</button>
+      <button type="button" class="sec" id="closeMask">先关掉</button>
+    </div>
+    <p class="foot">
+      要一次处理几十套、或者手里是 Word 文件（浏览器切不了 A3 的 Word，得先用 Word 导出 PDF 才能切），
+      微信上直接说一声。
+    </p>
+  </div>
 </div>
 
 <script src="vendor/pdf.min.js"></script>
@@ -177,6 +248,100 @@
   var splitter = window.createSplitter(PDFLib);
   var srcBytes = null, fileName = '', analysis = null, overrides = {}, pdfDoc = null;
   var busy = false;
+
+  /* ---------- 免费额度 ----------
+     定位说清楚：这是转化引导，不是 DRM。代码就在这个文件里，懂行的人改一行就能绕过，
+     项目本身也是 MIT 开源的——想完全免费，clone 下来自己跑就行，拦不住，也不打算拦。
+     它要解决的是「老师用完就走、我连人都没见过」这个问题，不是「防破解」。
+
+     口径：切分、预览、调切口全部不扣次数，只有**点下载**才扣一次。
+     这样老师可以放心试、看到切口对不对，不会因为误操作被扣掉额度。
+     存储不可用（无痕模式）时降级成不拦，宁可漏掉转化，也不能让工具用不了。     */
+  var QUOTA_FREE = 3;              // 初次免费次数
+  var QUOTA_GRANT = 3;             // 每次续额次数
+  var QUOTA_KEY = 'a3split.used';  // localStorage 里记的「已用次数」
+
+  var quotaPill = $('quotaPill'), quotaLeftEl = $('quotaLeft');
+  var payMask = $('payMask'), payLead = $('payLead');
+  var quotaCache = null;
+
+  function quotaRead() {
+    if (quotaCache !== null) return quotaCache;
+    var n = 0;
+    try {
+      var raw = localStorage.getItem(QUOTA_KEY);
+      n = raw ? parseInt(raw, 10) : 0;
+    } catch (e) { n = 0; }
+    if (isNaN(n) || n < 0) n = 0;
+    quotaCache = n;
+    return n;
+  }
+  function quotaLeft() { return Math.max(0, QUOTA_FREE - quotaRead()); }
+  function paintQuota() {
+    var left = quotaLeft();
+    quotaLeftEl.textContent = String(left);
+    quotaPill.className = 'quota' + (left === 0 ? ' zero' : '');
+  }
+  function quotaShift(delta) {
+    var next = Math.max(0, quotaRead() + delta);
+    quotaCache = next;
+    try { localStorage.setItem(QUOTA_KEY, String(next)); } catch (e) {}
+    paintQuota();
+  }
+
+  function openPay() {
+    payLead.textContent = '这个工具没有订阅、不用登录，只留 ' + QUOTA_FREE +
+      ' 次免费额度给偶尔改一两份的老师。加个微信，我再给你 ' + QUOTA_GRANT + ' 次。';
+    payMask.classList.remove('hidden');
+  }
+  function closePay() { payMask.classList.add('hidden'); }
+
+  function legacyCopy(text) {
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0;';
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); } catch (e) {}
+    document.body.removeChild(ta);
+  }
+  function copyText(text) {
+    if (navigator.clipboard && window.isSecureContext) {
+      return navigator.clipboard.writeText(text).catch(function () { legacyCopy(text); });
+    }
+    legacyCopy(text);
+    return Promise.resolve();
+  }
+
+  // 捕获阶段拦下载链接：额度用完就挡在浏览器默认行为之前
+  outHost.addEventListener('click', function (e) {
+    var a = (e.target && e.target.closest) ? e.target.closest('a[download]') : null;
+    if (!a) return;
+    if (quotaLeft() <= 0) {
+      e.preventDefault();
+      e.stopPropagation();
+      openPay();
+      return;
+    }
+    quotaShift(1);
+  }, true);
+
+  $('closeMask').addEventListener('click', closePay);
+  $('grantMore').addEventListener('click', function () {
+    quotaShift(-QUOTA_GRANT);   // 回补次数；反复点也放行，留住人比卡住人重要
+    closePay();
+  });
+  var copyBtn = $('copyWx');
+  copyBtn.addEventListener('click', function () {
+    copyText('jieshizhe').then(function () {
+      copyBtn.textContent = '已复制';
+      setTimeout(function () { copyBtn.textContent = '复制'; }, 1800);
+    });
+  });
+  payMask.addEventListener('click', function (e) { if (e.target === payMask) closePay(); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closePay(); });
+
+  paintQuota();
 
   // 开发态用外部 worker 文件；打包成单文件时 worker 源码内联在页面里，用 Blob 起
   var workerEl = document.getElementById('pdfWorkerSrc');

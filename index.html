@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>A3试卷分割工具 · 修正版</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 32px 16px 64px;
+    font-family: "Microsoft YaHei", "PingFang SC", system-ui, sans-serif;
+    color: #1f2937;
+    background: linear-gradient(135deg, #eff6ff, #e0e7ff);
+    min-height: 100vh;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; }
+  h1 { font-size: 30px; margin: 0 0 8px; text-align: center; }
+  .sub { text-align: center; color: #64748b; margin: 0 0 28px; font-size: 14px; }
+  .card {
+    background: #fff; border-radius: 16px; padding: 24px 28px; margin-bottom: 22px;
+    box-shadow: 0 4px 16px rgba(15, 23, 42, .10);
+  }
+  h2 { font-size: 19px; margin: 0 0 14px; }
+  h3 { font-size: 14px; margin: 0 0 10px; color: #475569; }
+  .row { display: flex; gap: 28px; align-items: center; flex-wrap: wrap; }
+  .col { flex: 1 1 320px; min-width: 280px; }
+  .btn {
+    display: inline-block; border: 0; cursor: pointer; font: inherit;
+    padding: 11px 20px; border-radius: 8px; font-weight: 700; color: #fff;
+    background: #3b82f6;
+  }
+  .btn:hover { filter: brightness(1.06); }
+  .btn.ghost { background: #e5e7eb; color: #374151; font-weight: 500; }
+  .btn.on { background: #3b82f6; color: #fff; font-weight: 700; }
+  .btn.green { background: #10b981; }
+  .btnbar { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; }
+  .note { font-size: 13px; color: #64748b; line-height: 1.8; margin: 10px 0 0; }
+  .hint {
+    background: #f8fafc; border-left: 3px solid #06b6d4; padding: 12px 14px;
+    font-size: 13px; line-height: 1.8; color: #475569; border-radius: 0 6px 6px 0; margin-top: 14px;
+  }
+  .hint.ok { border-left-color: #10b981; background: #f0fdf4; color: #166534; }
+  .hint.warn { border-left-color: #f59e0b; background: #fffbeb; color: #92400e; }
+  .status {
+    display: none; margin-top: 14px; padding: 11px 14px; border-radius: 8px;
+    background: #eff6ff; border: 1px solid #bfdbfe; color: #1d4ed8; font-size: 13px; line-height: 1.7;
+  }
+  .spin {
+    display: inline-block; width: 12px; height: 12px; margin-right: 8px; vertical-align: -1px;
+    border: 2px solid #bfdbfe; border-top-color: #1d4ed8; border-radius: 50%;
+    animation: sp .8s linear infinite;
+  }
+  @keyframes sp { to { transform: rotate(360deg); } }
+  code { background: #eef2ff; padding: 1px 5px; border-radius: 4px; font-size: 12px; }
+  .box {
+    border: 1px solid #e2e8f0; border-radius: 8px; background: #fff;
+    min-height: 180px; display: flex; align-items: center; justify-content: center;
+    overflow: hidden; padding: 8px;
+  }
+  .box img, .box canvas { max-width: 100%; max-height: 340px; object-fit: contain; }
+  .muted { color: #94a3b8; font-size: 13px; }
+  .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+  .slice {
+    border: 1px solid #e2e8f0; border-radius: 6px; background: #fff; padding: 4px;
+  }
+  .slice img { width: 100%; height: auto; display: block; }
+  .slice .cap { font-size: 11px; color: #64748b; padding: 4px 2px 2px; text-align: center; }
+  .err {
+    display: none; background: #fef2f2; border: 1px solid #fecaca; color: #b91c1c;
+    padding: 14px 16px; border-radius: 8px; font-size: 13px; line-height: 1.9; margin-bottom: 20px;
+  }
+  .err strong { display: block; font-size: 14px; margin-bottom: 4px; }
+  .toast {
+    position: fixed; right: 20px; bottom: 20px; padding: 12px 18px; border-radius: 8px;
+    color: #fff; font-size: 14px; display: none; z-index: 99; box-shadow: 0 6px 20px rgba(0,0,0,.2);
+  }
+  .toast.ok { background: #10b981; }
+  .toast.bad { background: #ef4444; }
+  .foot { text-align: right; margin-top: 18px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>A3 试卷分割工具</h1>
+  <p class="sub">A3 横向（420×297mm）竖切后正好是两张标准 A4 竖版（210×297mm），无需缩放</p>
+
+  <div id="err" class="err"></div>
+
+  <div class="card">
+    <div class="row">
+      <div class="col">
+        <h2>1. 上传文件</h2>
+        <p class="note">支持 <b>Word（.doc/.docx）/ PDF / JPG / PNG</b>。
+          上传 Word 时会调用本机 Word 自动排版、切分，直接产出 4 页 A4 可打印 PDF。<br>
+          若 Word 选不了或提示无法处理，说明当前是双击打开的本地文件——
+          双击本文件夹里的 <b>启动服务.bat</b> 再打开即可。</p>
+        <div style="margin-top:16px">
+          <input type="file" id="file" accept=".doc,.docx,.pdf,.jpg,.jpeg,.png,.bmp,.webp" hidden>
+          <label for="file" class="btn">选择文件上传</label>
+          <span id="filename" class="muted" style="margin-left:12px">未选择文件</span>
+        </div>
+        <div id="caps" class="hint"></div>
+        <div id="status" class="status"></div>
+      </div>
+      <div class="col">
+        <h3>原始页面预览</h3>
+        <div id="origin" class="box"><span class="muted">待上传</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>2. 分割方式</h2>
+    <div class="btnbar">
+      <button id="m-vert" class="btn on">垂直分割（A3横 → 2张A4竖）</button>
+      <button id="m-hori" class="btn ghost">水平分割</button>
+      <button id="m-four" class="btn ghost">四等分</button>
+    </div>
+    <div class="row">
+      <div class="col">
+        <h3>分割结果预览</h3>
+        <div id="splits" class="grid"><span class="muted" style="grid-column:1/-1;text-align:center;padding:24px">请先上传文件</span></div>
+      </div>
+    </div>
+    <div class="foot">
+      <button id="download" class="btn green">打包下载 PNG</button>
+      <button id="downloadPdf" class="btn green" style="display:none">下载 A4 PDF</button>
+    </div>
+    <div class="hint">
+      提示：上传 Word 时会先调本机 Word 排版，再按两栏真实边界切分，直接给出 4 页 A4 <b>可打印 PDF</b>（矢量，公式不糊）；
+      上传 PDF/图片则按页面图像切割，可选垂直/水平/四等分，输出 PNG 压缩包。两条路都不会改动你的原始文件。
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script src="vendor/jszip.min.js"></script>
+<script src="vendor/FileSaver.min.js"></script>
+<script src="vendor/pdf.min.js"></script>
+<script>
+  var pages = [];      // 原始页 canvas 数组
+  var slices = [];     // {name, canvas}
+  var mode = "vert";
+  var baseName = "分割结果";
+  var finalPdf = null; // Word 直转出的成品 A4 PDF（Blob），非空即"成品模式"
+  var online = location.protocol === "http:" || location.protocol === "https:";
+
+  var $ = function (id) { return document.getElementById(id); };
+  var fileEl = $("file"), origin = $("origin"), splits = $("splits"),
+      err = $("err"), toast = $("toast"), filename = $("filename");
+
+  function tip(msg, bad) {
+    toast.textContent = msg;
+    toast.className = "toast " + (bad ? "bad" : "ok");
+    toast.style.display = "block";
+    clearTimeout(tip._t);
+    tip._t = setTimeout(function () { toast.style.display = "none"; }, 3000);
+  }
+  function showErr(title, detail) {
+    err.innerHTML = "<strong>" + title + "</strong>" + detail;
+    err.style.display = "block";
+  }
+  function clearErr() { err.style.display = "none"; err.innerHTML = ""; }
+
+  // ---- 顶部能力提示 ----
+  (function () {
+    var el = $("caps");
+    if (online) {
+      el.className = "hint ok";
+      el.innerHTML = "本服务已就绪：<b>可以直接上传 Word</b>（.doc/.docx），会调用本机 Word 排版、" +
+        "自动切成 4 页标准 A4，并给出可打印 PDF。";
+    } else {
+      el.className = "hint warn";
+      el.innerHTML = "当前是双击打开的本地文件，浏览器没有 Word 排版引擎，<b>Word 无法处理</b>。" +
+        "双击本文件夹里的 <b>启动服务.bat</b>（或命令行 <code>python serve.py</code>），" +
+        "会自动打开浏览器并启用 Word 直转。";
+    }
+  })();
+
+  // ---- 处理中状态条 ----
+  var statusEl = $("status"), statusTimer = null, statusStart = 0;
+  function showBusy(text) {
+    statusStart = Date.now();
+    statusEl.style.display = "block";
+    function tick() {
+      var s = Math.round((Date.now() - statusStart) / 1000);
+      statusEl.innerHTML = '<span class="spin"></span>' + text +
+        ' 已 ' + s + ' 秒' + (s > 60 ? '（首次调用 Word 较慢，请勿关闭窗口）' : '…');
+    }
+    tick();
+    clearInterval(statusTimer);
+    statusTimer = setInterval(tick, 1000);
+  }
+  function hideBusy() {
+    clearInterval(statusTimer);
+    statusEl.style.display = "none";
+    statusEl.innerHTML = "";
+  }
+
+  function loadImageFile(file) {
+    return new Promise(function (resolve, reject) {
+      var fr = new FileReader();
+      fr.onerror = function () { reject(new Error("文件读取失败")); };
+      fr.onload = function (e) {
+        var img = new Image();
+        img.onload = function () {
+          var c = document.createElement("canvas");
+          c.width = img.naturalWidth; c.height = img.naturalHeight;
+          c.getContext("2d").drawImage(img, 0, 0);
+          resolve([c]);
+        };
+        img.onerror = function () { reject(new Error("浏览器无法把该文件解码为图片")); };
+        img.src = e.target.result;
+      };
+      fr.readAsDataURL(file);
+    });
+  }
+
+  async function loadPdfBytes(buffer) {
+    if (!window.pdfjsLib) throw new Error("PDF 组件未加载：请确认 vendor/pdf.min.js 存在");
+    pdfjsLib.GlobalWorkerOptions.workerSrc = "vendor/pdf.worker.min.js";
+    var data = new Uint8Array(buffer);
+    var pdf = await pdfjsLib.getDocument({ data: data }).promise;
+    var out = [];
+    for (var i = 1; i <= pdf.numPages; i++) {
+      var page = await pdf.getPage(i);
+      var vp = page.getViewport({ scale: 2 });
+      var c = document.createElement("canvas");
+      c.width = Math.round(vp.width); c.height = Math.round(vp.height);
+      await page.render({ canvasContext: c.getContext("2d"), viewport: vp }).promise;
+      out.push(c);
+      tip("已渲染第 " + i + " / " + pdf.numPages + " 页");
+    }
+    return out;
+  }
+
+  function loadPdfFile(file) {
+    return file.arrayBuffer().then(loadPdfBytes);
+  }
+
+  // ---- Word → 服务端调用本机 Word 排版、切分 ----
+  async function uploadDocx(file) {
+    showBusy("正在用本机 Word 排版并切分");
+    clearErr();
+    try {
+      var res = await fetch("/api/docx", {
+        method: "POST",
+        headers: { "X-Filename": encodeURIComponent(file.name) },
+        body: file
+      });
+      if (!res.ok) {
+        var msg = "转换失败（HTTP " + res.status + "）";
+        try { var j = await res.json(); if (j && j.error) msg = j.error; } catch (e2) { }
+        throw new Error(msg);
+      }
+      var buf = await res.arrayBuffer();
+      finalPdf = new Blob([buf], { type: "application/pdf" });
+      pages = await loadPdfBytes(buf);
+      hideBusy();
+      render();
+      $("download").style.display = "none";
+      $("downloadPdf").style.display = "";
+      tip("已生成 " + pages.length + " 页标准 A4");
+    } catch (ex) {
+      hideBusy();
+      console.error(ex);
+      pages = []; finalPdf = null; render();
+      $("download").style.display = "";
+      $("downloadPdf").style.display = "none";
+      showErr("Word 转换失败", (ex && ex.message ? ex.message : String(ex)) +
+        "<br>常见原因：本机没装 Word / 有弹窗占用；也可先运行 <code>python split_word.py 文件.docx</code> 看具体报错。");
+    }
+  }
+
+  fileEl.onchange = async function (e) {
+    var f = e.target.files[0];
+    if (!f) return;
+    clearErr();
+    var ext = (f.name.split(".").pop() || "").toLowerCase();
+    baseName = f.name.replace(/\.[^.]+$/, "");
+    filename.textContent = f.name;
+    finalPdf = null;
+    $("download").style.display = "";
+    $("downloadPdf").style.display = "none";
+
+    if (ext === "doc" || ext === "docx") {
+      if (!online) {
+        showErr("Word 需要本地服务才能处理",
+          "当前页面是双击打开的本地文件（file://），浏览器没有 Word 排版引擎，无法把 .docx 变成可切的页面。<br>" +
+          "解决办法：双击本文件夹里的 <b>启动服务.bat</b>（或命令行 <code>python serve.py</code>），" +
+          "它会自动打开浏览器并启用 Word 直转，之后这里就能直接选 Word 文件。<br>" +
+          "也可以命令行一条命令搞定：<code>python split_word.py 你的文件.docx</code>。");
+        return;
+      }
+      await uploadDocx(f);
+      return;
+    }
+
+    tip("正在解析文件...");
+    try {
+      if (ext === "pdf") pages = await loadPdfFile(f);
+      else if (["jpg", "jpeg", "png", "bmp", "webp"].indexOf(ext) >= 0) pages = await loadImageFile(f);
+      else throw new Error("不支持的文件格式：" + ext);
+      render();
+      tip("解析成功，共 " + pages.length + " 页");
+    } catch (ex) {
+      console.error(ex);
+      pages = []; render();
+      showErr("文件解析失败", (ex && ex.message ? ex.message : String(ex)) +
+        "<br>若为 PDF，请确认 vendor/ 目录下 4 个 js 文件齐全；也可改用本地 HTTP 服务方式打开本页。");
+    }
+  };
+
+  function setMode(m) {
+    if (finalPdf) { tip("Word 已直接输出标准 A4，无需再选分割方式", true); return; }
+    mode = m;
+    ["vert", "hori", "four"].forEach(function (k) {
+      var b = $("m-" + k);
+      b.className = k === m ? "btn on" : "btn ghost";
+    });
+    render();
+  }
+  $("m-vert").onclick = function () { setMode("vert"); };
+  $("m-hori").onclick = function () { setMode("hori"); };
+  $("m-four").onclick = function () { setMode("four"); };
+
+  function render() {
+    slices = [];
+    origin.innerHTML = "";
+    splits.innerHTML = "";
+    if (!pages.length) {
+      origin.innerHTML = '<span class="muted">待上传</span>';
+      splits.innerHTML = '<span class="muted" style="grid-column:1/-1;text-align:center;padding:24px">请先上传文件</span>';
+      return;
+    }
+    var p0 = document.createElement("canvas");
+    p0.width = Math.min(pages[0].width, 900);
+    p0.height = Math.round(p0.width * pages[0].height / pages[0].width);
+    p0.getContext("2d").drawImage(pages[0], 0, 0, p0.width, p0.height);
+    origin.innerHTML = "";
+    var im = new Image(); im.src = p0.toDataURL("image/jpeg", 0.85); origin.appendChild(im);
+
+    // Word 直转：服务端已切好 4 页 A4，这里按页预览，不再二次切割
+    if (finalPdf) {
+      pages.forEach(function (src, pi) {
+        var label = "第" + (pi + 1) + "页.png";
+        slices.push({ name: label, canvas: src });
+        var d = document.createElement("div"); d.className = "slice";
+        var im2 = new Image(); im2.src = src.toDataURL("image/jpeg", 0.85);
+        var cap = document.createElement("div"); cap.className = "cap"; cap.textContent = label;
+        d.appendChild(im2); d.appendChild(cap); splits.appendChild(d);
+      });
+      return;
+    }
+
+    pages.forEach(function (src, pi) {
+      var W = src.width, H = src.height, list;
+      if (mode === "vert") list = [{ x: 0, y: 0, w: W / 2, h: H }, { x: W / 2, y: 0, w: W / 2, h: H }];
+      else if (mode === "hori") list = [{ x: 0, y: 0, w: W, h: H / 2 }, { x: 0, y: H / 2, w: W, h: H / 2 }];
+      else list = [
+        { x: 0, y: 0, w: W / 2, h: H / 2 }, { x: W / 2, y: 0, w: W / 2, h: H / 2 },
+        { x: 0, y: H / 2, w: W / 2, h: H / 2 }, { x: W / 2, y: H / 2, w: W / 2, h: H / 2 }
+      ];
+      list.forEach(function (pos, si) {
+        var c = document.createElement("canvas");
+        c.width = Math.round(pos.w); c.height = Math.round(pos.h);
+        c.getContext("2d").drawImage(src, pos.x, pos.y, pos.w, pos.h, 0, 0, c.width, c.height);
+        var label = (pages.length > 1 ? "第" + (pi + 1) + "页-" : "") + "分割" + (si + 1) + ".png";
+        slices.push({ name: label, canvas: c });
+        var d = document.createElement("div"); d.className = "slice";
+        var img = new Image(); img.src = c.toDataURL("image/jpeg", 0.85);
+        var cap = document.createElement("div"); cap.className = "cap"; cap.textContent = label;
+        d.appendChild(img); d.appendChild(cap); splits.appendChild(d);
+      });
+    });
+  }
+
+  $("downloadPdf").onclick = function () {
+    if (!finalPdf) { tip("还没有生成 PDF", true); return; }
+    if (!window.saveAs) { tip("下载组件未加载，请确认 vendor/FileSaver.min.js 存在", true); return; }
+    saveAs(finalPdf, baseName + "-可打印A4.pdf");
+    tip("已开始下载 A4 PDF");
+  };
+
+  $("download").onclick = async function () {
+    if (finalPdf) { $("downloadPdf").click(); return; }
+    if (!slices.length) { tip("请先上传文件", true); return; }
+    if (!window.JSZip || !window.saveAs) { tip("打包组件未加载，请确认 vendor/ 目录完整", true); return; }
+    tip("正在打包 " + slices.length + " 张图片...");
+    try {
+      var zip = new JSZip();
+      slices.forEach(function (s) {
+        zip.file(s.name, s.canvas.toDataURL("image/png").split(",")[1], { base64: true });
+      });
+      var blob = await zip.generateAsync({ type: "blob" });
+      saveAs(blob, baseName + "-A4分割.zip");
+      tip("下载完成");
+    } catch (ex) {
+      console.error(ex);
+      tip("生成失败：" + ex.message, true);
+    }
+  };
+</script>
+</body>
+</html>

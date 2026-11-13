@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>PDF rasterizer</title>
+<style>html,body{margin:0;padding:0;background:#fff}</style>
+</head>
+<body>
+<script>
+// 按需加载 pdf.js：默认走 CDN，可用 ?pdfjs=<url> 指定本地副本（离线环境）
+(function () {
+  var q = new URLSearchParams(location.search);
+  var src = q.get("pdfjs") || "https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js";
+  window.__error = null;
+  window.__pdfjsUrl = src;
+  var s = document.createElement("script");
+  s.src = src;
+  s.onload = function () {
+    try {
+      var base = src.replace(/pdf(\.min)?\.js(\?.*)?$/, "");
+      window.pdfjsLib.GlobalWorkerOptions.workerSrc = base + "pdf.worker.min.js";
+      window.__ready = true;
+    } catch (e) {
+      window.__error = "pdf.js 初始化失败: " + e.message;
+    }
+  };
+  s.onerror = function () { window.__error = "pdf.js 加载失败: " + src; };
+  document.head.appendChild(s);
+})();
+
+// 渲染整份 PDF：返回 [{page,width,height,png(base64 dataURL),text:[{t,x,y}]}]
+window.__render = async function (url, scale) {
+  if (!window.pdfjsLib) throw new Error(window.__error || "pdf.js 未加载");
+  var pdf = await window.pdfjsLib.getDocument({ url: url }).promise;
+  var out = [];
+  for (var i = 1; i <= pdf.numPages; i++) {
+    var page = await pdf.getPage(i);
+    var vp = page.getViewport({ scale: scale || 2 });
+    var c = document.createElement("canvas");
+    c.width = Math.round(vp.width);
+    c.height = Math.round(vp.height);
+    var ctx = c.getContext("2d");
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, c.width, c.height);
+    await page.render({ canvasContext: ctx, viewport: vp }).promise;
+    var tc = await page.getTextContent();
+    var items = tc.items.map(function (it) {
+      return { t: it.str, x: it.transform[4], y: it.transform[5] };
+    });
+    out.push({
+      page: i,
+      width: c.width,
+      height: c.height,
+      png: c.toDataURL("image/png"),
+      text: items
+    });
+    page.cleanup();
+  }
+  return out;
+};
+</script>
+</body>
+</html>

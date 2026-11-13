@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>试卷 A3 拆 A4 · 代切服务（字不会被切断）</title>
+<meta name="description" content="把两张 A4 拼成的 A3 横向试卷，无损拆成可直接打印的 A4。切口按两栏真实边框定，不按页面中线切，字和公式不会被切断；裁掉姓名学号栏，输出标准 A4 矢量 PDF。先看样张再付款。">
+<meta name="keywords" content="A3拆A4,试卷分割,A3转A4,试卷打印,分栏切分,A4打印版">
+<meta property="og:type" content="website">
+<meta property="og:title" content="试卷 A3 拆 A4 · 代切服务（字不会被切断）">
+<meta property="og:description" content="按两栏真实边框下刀，不按页面中线切：同一行字不会丢最后一个字。先看样张再付款。">
+<meta name="theme-color" content="#2563eb">
+<style>
+  :root{
+    --ink:#0f172a;
+    --ink-2:#3f4a5c;
+    --ink-3:#6b7688;
+    --line:#e3e7ee;
+    --bg:#ffffff;
+    --bg-soft:#f6f8fc;
+    --accent:#2563eb;
+    --accent-soft:#eef3ff;
+    --warn:#b45309;
+    --warn-soft:#fff7ed;
+  }
+  *{box-sizing:border-box;}
+  html{-webkit-text-size-adjust:100%;}
+  body{
+    margin:0;
+    background:var(--bg-soft);
+    color:var(--ink);
+    font:16px/1.75 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    font-feature-settings:"kern" 1;
+  }
+  .page{
+    max-width:760px;
+    margin:0 auto;
+    background:var(--bg);
+    padding:56px 56px 48px;
+    box-shadow:0 1px 3px rgba(15,23,42,.04),0 12px 32px rgba(15,23,42,.06);
+  }
+  .badge{
+    display:inline-block;
+    font-size:12px;
+    letter-spacing:.08em;
+    color:var(--accent);
+    background:var(--accent-soft);
+    border-radius:999px;
+    padding:4px 12px;
+    margin-bottom:20px;
+  }
+  h1{
+    font-size:30px;
+    line-height:1.35;
+    letter-spacing:-.01em;
+    margin:0 0 12px;
+    font-weight:700;
+  }
+  .lede{
+    font-size:17px;
+    color:var(--ink-2);
+    margin:0 0 8px;
+  }
+  .lede strong{color:var(--ink);font-weight:600;}
+  .meta{
+    font-size:13px;
+    color:var(--ink-3);
+    margin-top:18px;
+    padding-bottom:28px;
+    border-bottom:1px solid var(--line);
+  }
+  .shot{margin:0 0 2px;}
+  .shot img{
+    width:100%;height:auto;display:block;
+    border:1px solid var(--line);border-radius:10px;background:#fff;
+  }
+  .shot figcaption{margin-top:10px;font-size:12.5px;color:var(--ink-3);line-height:1.7;}
+  h2{
+    font-size:15px;
+    letter-spacing:.06em;
+    color:var(--ink-3);
+    font-weight:600;
+    margin:40px 0 16px;
+  }
+  h2::before{content:"";display:inline-block;width:3px;height:13px;background:var(--accent);border-radius:2px;margin-right:9px;vertical-align:-1px;}
+  p{margin:0 0 12px;}
+  .pains{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}
+  .pain{
+    background:var(--bg-soft);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:16px 16px 14px;
+  }
+  .pain b{display:block;font-size:14px;margin-bottom:6px;color:var(--ink);font-weight:600;}
+  .pain span{font-size:13px;color:var(--ink-3);line-height:1.6;display:block;}
+  table{width:100%;border-collapse:collapse;font-size:15px;}
+  th,td{text-align:left;padding:14px 12px;border-bottom:1px solid var(--line);vertical-align:top;}
+  th{font-size:12px;letter-spacing:.06em;color:var(--ink-3);font-weight:600;border-bottom:1px solid var(--ink);}
+  td.price{white-space:nowrap;font-weight:600;font-variant-numeric:tabular-nums;}
+  td .sub{display:block;font-size:12px;color:var(--ink-3);font-weight:400;margin-top:2px;}
+  tr.mark{background:var(--accent-soft);}
+  tr.mark td:first-child{border-radius:8px 0 0 8px;}
+  tr.mark td:last-child{border-radius:0 8px 8px 0;}
+  tr.mark .tag{font-size:11px;color:var(--accent);border:1px solid #bfd2ff;border-radius:4px;padding:1px 5px;margin-left:6px;white-space:nowrap;}
+  ol.steps{list-style:none;counter-reset:s;padding:0;margin:0;}
+  ol.steps li{
+    counter-increment:s;
+    position:relative;
+    padding-left:40px;
+    margin-bottom:14px;
+    font-size:15px;
+    color:var(--ink-2);
+  }
+  ol.steps li::before{
+    content:counter(s);
+    position:absolute;
+    left:0;top:2px;
+    width:24px;height:24px;
+    border-radius:50%;
+    background:var(--accent-soft);
+    color:var(--accent);
+    font-size:12px;
+    font-weight:600;
+    display:flex;align-items:center;justify-content:center;
+  }
+  ol.steps b{color:var(--ink);font-weight:600;}
+  details{
+    border-bottom:1px solid var(--line);
+    padding:12px 0;
+    font-size:15px;
+  }
+  details summary{
+    cursor:pointer;
+    color:var(--ink);
+    font-weight:500;
+    list-style:none;
+  }
+  details summary::-webkit-details-marker{display:none;}
+  details summary::after{content:"＋";float:right;color:var(--ink-3);font-weight:400;}
+  details[open] summary::after{content:"－";}
+  details p{margin:10px 0 0;color:var(--ink-2);font-size:14px;}
+  .contact{
+    margin-top:36px;
+    border:1px solid var(--line);
+    border-radius:12px;
+    padding:22px 24px;
+    background:linear-gradient(180deg,#fff,#fbfcff);
+  }
+  .contact h3{margin:0 0 6px;font-size:18px;}
+  .contact p{color:var(--ink-2);font-size:14px;margin:0 0 14px;}
+  .contact .line{font-size:15px;margin:0 0 8px;}
+  .contact .line b{display:inline-block;min-width:64px;color:var(--ink-3);font-weight:400;font-size:13px;}
+  .contact .line .wx{
+    font-size:17px;
+    font-weight:600;
+    letter-spacing:.02em;
+    color:var(--ink);
+    padding:2px 8px;
+    background:var(--accent-soft);
+    border-radius:4px;
+    user-select:all;
+  }
+  .contact .line .copytip{margin-left:10px;font-size:12.5px;color:var(--ink-3);}
+  .guarantee{
+    display:flex;gap:10px;align-items:flex-start;
+    margin-top:18px;padding:14px 16px;
+    background:var(--bg-soft);border-radius:10px;
+    font-size:13.5px;color:var(--ink-2);line-height:1.7;
+  }
+  .guarantee b{color:var(--ink);}
+  footer{
+    margin-top:40px;padding-top:18px;border-top:1px solid var(--line);
+    font-size:12px;color:var(--ink-3);
+    display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;
+  }
+  @media (max-width:640px){
+    .page{padding:32px 22px 32px;}
+    h1{font-size:24px;}
+    .pains{grid-template-columns:1fr;}
+    table{font-size:14px;}
+    th,td{padding:11px 8px;}
+  }
+  @media print{
+    body{background:#fff;}
+    .page{box-shadow:none;padding:0;max-width:none;}
+    details{break-inside:avoid;}
+    details p{display:block!important;}
+    .contact,table,.pains{break-inside:avoid;}
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="badge">A3 拆 A4 · 代切服务</div>
+
+  <h1>把 A3 双拼试卷，切成能直接打印的 A4</h1>
+
+  <p class="lede">
+    学校发的、网上下载的试卷，常常是两张 A4 拼在一张 A3 横向上。
+    直接打出来字太小，想拆成单页又总出事：<strong>不是字被切断，就是公式发虚、页边挤成一团。</strong>
+  </p>
+
+  <p class="lede">
+    我这边用一套专门的切分流程处理：<strong>切口按两栏真实边框定，不按页面中线切</strong>，
+    字体和公式保持矢量，裁掉左边的姓名学号栏，输出标准 A4 可直接打印。
+  </p>
+
+  <div class="meta">支持 Word（.doc / .docx）、PDF、清晰照片扫描件 · 通常当天交付 · 先看样张再付款</div>
+
+  <h2>你大概遇到过这些</h2>
+  <div class="pains">
+    <div class="pain">
+      <b>字被切断</b>
+      <span>页面中线一刀下去，「千克」的「千」跑到下一页，学生读成「克」。</span>
+    </div>
+    <div class="pain">
+      <b>公式发虚</b>
+      <span>转 PDF 后公式位图叠着灰底，打印出来像重影，看着就脏。</span>
+    </div>
+    <div class="pain">
+      <b>左边多一条</b>
+      <span>姓名学号栏占着一条边，切完每页都少一块，还得手动修。</span>
+    </div>
+  </div>
+
+  <h2>差别就在最后一个字</h2>
+  <figure class="shot">
+    <img src="对比图-两种切法.png" alt="左：按页面中线切，行末只剩「多少」，丢了「千」字；右：按两栏真实边框切，「多少千」完整保留">
+    <figcaption>
+      同一行字、同一倍率、同一份文件，只有切口位置不同。
+      左边是多数工具的做法（按页面中线切），行末只剩「需要药粉多少」，下一页接着「克？」——学生很容易读成「多少克」；
+      右边按两栏真实边框切，「多少千」完整留在这一页。差的这 24pt，正好是一个汉字宽。
+    </figcaption>
+  </figure>
+
+  <h2>价格</h2>
+  <table>
+    <thead>
+      <tr><th>服务</th><th>内容</th><th style="text-align:right">价格</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>单份代切</td>
+        <td>1 套试卷（A3 横向，含 2～8 页 A3）切成 A4<span class="sub">含 1 次免费修改</span></td>
+        <td class="price" style="text-align:right">￥10<span class="sub">/ 套</span></td>
+      </tr>
+      <tr class="mark">
+        <td>整册 / 整套<span class="tag">最常见</span></td>
+        <td>单元卷、期中期末整套，5 套起<span class="sub">统一版式，文件命名按你的习惯排好</span></td>
+        <td class="price" style="text-align:right">￥6<span class="sub">/ 套</span></td>
+      </tr>
+      <tr>
+        <td>批量长期</td>
+        <td>20 套以上，或需要每周固定处理<span class="sub">可约定固定交付时间</span></td>
+        <td class="price" style="text-align:right">面议</td>
+      </tr>
+      <tr>
+        <td>定制脚本</td>
+        <td>把你手上这类文件做成一条命令，自己随时批量跑<span class="sub">含一次远程安装 + 使用讲解</span></td>
+        <td class="price" style="text-align:right">￥200 起</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>怎么走</h2>
+  <ol class="steps">
+    <li><b>发样张</b>　把 1 份 A3 文件发我（微信 / 邮箱都行），说明要切成几页、要不要留姓名栏。</li>
+    <li><b>先看效果</b>　我免费切 1 页发你看，确认字没被切、公式清楚、页面大小对。</li>
+    <li><b>付款开工</b>　确认没问题再付款，剩下的按约定时间交付。</li>
+    <li><b>验收</b>　收到 PDF 直接打印即可；有问题免费改 1 次。</li>
+  </ol>
+
+  <h2>你可能想问</h2>
+  <details>
+    <summary>能不能给我可编辑的 Word，而不是 PDF？</summary>
+    <p>这类试卷的版面是绝对定位文本框拼的，拆成 A4 后必须整体重排，重排就会错位。
+       所以交付的是<b>排版已经固定好的 A4 打印版 PDF</b>。如果一定要 Word，
+       属于重新排版，按「定制脚本」那档另算。</p>
+  </details>
+  <details>
+    <summary>文件里有学生姓名、学校，安全吗？</summary>
+    <p>只用于这一次处理，交付完即删，不留档、不外传。也可以把姓名栏整条糊掉或裁掉再发我。</p>
+  </details>
+  <details>
+    <summary>扫描件 / 手机拍的照片行不行？</summary>
+    <p>清晰、四角完整、没有明显倾斜的可以。歪得厉害或太糊的，需要先做校正，可能加收一点。</p>
+  </details>
+  <details>
+    <summary>我自己会点技术，能不能不花钱？</summary>
+    <p>可以。这套流程已经开源在 GitHub，装好 Python 后一条命令就能跑，自己用完全免费。
+       我这里收的其实是「不想折腾」和「出问题有人兜」的钱。</p>
+  </details>
+
+  <div class="contact">
+    <h3>联系我</h3>
+    <p>发文件前先说一句是「试卷切 A4」，我会优先看。</p>
+    <p class="line"><b>微信</b><strong class="wx">jieshizhe</strong><span class="copytip">搜这个号加我，备注「试卷」</span></p>
+    <p class="line"><b>邮箱</b>oracis@gmail.com</p>
+    <p class="line"><b>回复</b>通常 2 小时内，晚上也在</p>
+    <div class="guarantee">
+      <div><b>先看样张再付款。</b>样张不满意可以直接不做，不用解释。付款后交付不及时，全额退。</div>
+    </div>
+  </div>
+
+  <footer>
+    <span>试卷 A3 拆 A4 · 代切服务</span>
+    <span>开源工具：github.com/oracis/a3-to-a4-split</span>
+  </footer>
+
+</div>
+</body>
+</html>

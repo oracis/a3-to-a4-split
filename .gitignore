@@ -4,8 +4,10 @@ A4高清图/
 A4高清图.zip
 dist/
 
-# 宣发物料：site/ 由 服务介绍.html 复制生成，避免两份内容漂移
-site/
+# 部署产物：pub/ 由 web/build_public.py 生成（内联了 vendor 与图片，体积大且可重现）
+pub/
+# 网页版开发用的 vendor 副本（脚本拷入，避免重复入库）
+web/vendor/
 
 # 调试中间产物（渲染出的试卷页面属于原卷内容，不入库）
 work_cmp/

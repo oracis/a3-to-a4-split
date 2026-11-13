@@ -30,7 +30,27 @@ A3 宽 1190.6pt，但左栏实际写到 619.4pt。差的这 24pt 正好是一个
 请根据 https://skillhub.cn/install/skillhub.md 安装 @user_bd60432e/a3-to-a4-split
 ```
 
-## 两种用法
+## 三种用法
+
+### 0. 浏览器版（零安装，文件不出浏览器）
+
+打开 <https://wbapp-gby0ngpwa3zwqbmb34cfjh.app.workbuddy.host/tool.html?sharecode=EVWIMGSIFI>
+（或直接用 `pub/tool.html` 单文件，双击即可，断网也能跑）：
+
+拖入 A3 的 PDF → 自动识别双栏切口 → 需要时可以拖滑块微调 → 输出 A4。
+
+实现方式是把 `split_a3.py` 的几何算法**一比一移植成 JS**（`web/split_core.js`），
+用 pdf-lib 改页面结构、pdf.js 做预览渲染。同一份输入，JS 版与 Python 版输出
+**逐像素一致（4 页、0 差异）**，不是另写一套近似逻辑。
+
+```bash
+node web/test_core.js 输入.pdf     # 结构回归（打印切口/裁剪/A4 窗口）
+node web/e2e.mjs 输入.pdf          # 无头浏览器跑完整流程（选文件→切→截图）
+python web/build_public.py         # 生成自包含单文件 pub/index.html、pub/tool.html
+```
+
+> 托管侧对不带 `sharecode` 的子资源返回 403，所以 `pub/` 里的页面把 JS、图片全部内联成单文件；
+> 顺带的好处是老师可以只拿走一个 HTML 文件离线用。
 
 ### 1. 网页版（推荐，双击即用）
 

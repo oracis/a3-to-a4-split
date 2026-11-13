@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>A3 试卷拆 A4 · 在线切分（文件不出浏览器）</title>
+<meta name="description" content="把两张 A4 拼成的 A3 横向试卷，在线无损拆成标准 A4 打印页。切口按两栏真实边框定，不按页面中线切，字和公式不会被切断。纯浏览器处理，PDF 不上传。">
+<meta name="theme-color" content="#2563eb">
+<style>
+  :root{
+    --ink:#0f172a; --ink-2:#3f4a5c; --ink-3:#6b7688;
+    --line:#e3e7ee; --bg:#fff; --bg-soft:#f6f8fc;
+    --accent:#2563eb; --accent-soft:#eef3ff;
+    --ok:#15803d; --ok-soft:#f0fdf4; --warn:#b45309; --warn-soft:#fff7ed;
+    --red:#dc2626;
+  }
+  *{box-sizing:border-box;}
+  html{-webkit-text-size-adjust:100%;}
+  body{
+    margin:0;background:var(--bg-soft);color:var(--ink);
+    font:15px/1.7 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+  }
+  .wrap{max-width:880px;margin:0 auto;padding:32px 20px 64px;}
+  header{margin-bottom:24px;}
+  .badge{
+    display:inline-block;font-size:12px;letter-spacing:.06em;color:var(--accent);
+    background:var(--accent-soft);border-radius:999px;padding:3px 11px;margin-bottom:12px;
+  }
+  h1{font-size:26px;line-height:1.35;margin:0 0 8px;letter-spacing:-.01em;}
+  .sub{color:var(--ink-2);margin:0;font-size:15px;}
+  .sub b{color:var(--ink);}
+
+  .drop{
+    margin-top:20px;background:var(--bg);border:1.5px dashed #c7d2e4;border-radius:14px;
+    padding:34px 20px;text-align:center;cursor:pointer;transition:.18s;
+  }
+  .drop:hover,.drop.over{border-color:var(--accent);background:#fbfdff;}
+  .drop .big{font-size:16px;font-weight:600;margin-bottom:4px;}
+  .drop .small{font-size:13px;color:var(--ink-3);}
+  .drop .ico{font-size:26px;line-height:1;margin-bottom:10px;opacity:.5;}
+
+  .panel{background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:18px 20px;margin-top:16px;}
+  .panel h2{font-size:14px;margin:0 0 12px;color:var(--ink-3);letter-spacing:.05em;font-weight:600;}
+  .opts{display:flex;gap:22px;flex-wrap:wrap;}
+  .opt{display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer;user-select:none;}
+  .opt input{width:16px;height:16px;accent-color:var(--accent);}
+  .hint{font-size:12.5px;color:var(--ink-3);margin-top:10px;}
+
+  .pages{display:flex;flex-direction:column;gap:14px;margin-top:16px;}
+  .pg{background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:14px;}
+  .pg-head{display:flex;justify-content:space-between;align-items:baseline;font-size:13px;color:var(--ink-3);margin-bottom:10px;gap:10px;flex-wrap:wrap;}
+  .pg-head b{color:var(--ink);font-size:14px;font-weight:600;}
+  .thumb{position:relative;line-height:0;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:#fff;}
+  .thumb canvas{width:100%;height:auto;display:block;}
+  .cutline{position:absolute;top:0;bottom:0;width:0;border-left:2px dashed var(--red);}
+  .drop.loaded{padding:14px 18px;text-align:left;}
+  .drop.loaded .ico,.drop.loaded .big{display:none;}
+  .drop.loaded .small b{color:var(--ink);font-weight:600;}
+  .gotline{position:absolute;top:0;bottom:0;width:0;border-left:1px dashed #94a3b8;}
+  .nudge{display:flex;align-items:center;gap:10px;margin-top:10px;}
+  .nudge input[type=range]{flex:1;accent-color:var(--accent);}
+  .nudge .val{font-variant-numeric:tabular-nums;font-size:13px;color:var(--ink-2);min-width:66px;text-align:right;}
+  .nudge button{
+    border:1px solid var(--line);background:#fff;border-radius:6px;padding:2px 8px;
+    font-size:12px;color:var(--ink-3);cursor:pointer;
+  }
+
+  .btn{
+    display:block;width:100%;margin-top:18px;border:0;border-radius:10px;
+    background:var(--accent);color:#fff;font-size:16px;font-weight:600;padding:14px;
+    cursor:pointer;transition:.15s;
+  }
+  .btn:hover{background:#1d4ed8;}
+  .btn:disabled{background:#c7d2e4;cursor:not-allowed;}
+  .btn.ghost{background:#fff;color:var(--accent);border:1px solid #bfd2ff;}
+
+  .out{margin-top:18px;}
+  .out-strip{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;}
+  .out-strip figure{margin:0;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:#fff;}
+  .out-strip canvas{width:100%;height:auto;display:block;}
+  .out-strip figcaption{font-size:11.5px;color:var(--ink-3);text-align:center;padding:4px 0;line-height:1.5;}
+
+  .ok-box{
+    background:var(--ok-soft);border:1px solid #bbf7d0;color:#14532d;
+    border-radius:10px;padding:14px 16px;font-size:14px;
+  }
+  .ok-box b{font-weight:600;}
+  .warn-box{
+    background:var(--warn-soft);border:1px solid #fed7aa;color:#7c2d12;
+    border-radius:10px;padding:12px 14px;font-size:13.5px;margin-top:12px;
+  }
+  .err-box{
+    background:#fef2f2;border:1px solid #fecaca;color:#991b1b;
+    border-radius:10px;padding:12px 14px;font-size:14px;margin-top:12px;white-space:pre-wrap;
+  }
+  pre.report{
+    background:var(--bg-soft);border:1px solid var(--line);border-radius:8px;
+    padding:12px 14px;font-size:12px;line-height:1.7;color:var(--ink-2);
+    overflow:auto;max-height:220px;margin:12px 0 0;white-space:pre-wrap;
+  }
+  footer{margin-top:34px;padding-top:18px;border-top:1px solid var(--line);font-size:13px;color:var(--ink-3);}
+  footer a{color:var(--accent);text-decoration:none;}
+  details{margin-top:14px;font-size:14px;color:var(--ink-2);}
+  details summary{cursor:pointer;color:var(--ink);}
+  details p{margin:8px 0 0;font-size:13.5px;}
+  .hidden{display:none!important;}
+  @media (max-width:640px){
+    .wrap{padding:20px 14px 48px;}
+    h1{font-size:21px;}
+    .out-strip{grid-template-columns:repeat(2,1fr);}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="badge">A3 拆 A4 · 在线版</div>
+  <h1>把 A3 双拼试卷，切成能直接打印的 A4</h1>
+  <p class="sub">
+    切口按<b>两栏真实边框</b>定，不按页面中线切——所以不会出现「需要药粉多少千」被切断成「多少克」。
+    全部在<b>你自己的浏览器里</b>完成，文件不会上传到任何服务器。
+  </p>
+</header>
+
+<div class="drop" id="drop">
+  <div class="ico">▤</div>
+  <div class="big">把 A3 的 PDF 拖到这里</div>
+  <div class="small">或点击选择文件 · 支持多页 · 建议先用 Word / WPS 把试卷另存为 PDF</div>
+</div>
+<input type="file" id="file" accept=".pdf,application/pdf" class="hidden">
+
+<div class="panel hidden" id="optPanel">
+  <h2>选项</h2>
+  <div class="opts">
+    <label class="opt"><input type="checkbox" id="optMarks" checked>清除页边的黑色裁切块</label>
+    <label class="opt"><input type="checkbox" id="optStrip" checked>裁掉左侧「姓名/学号」竖条</label>
+  </div>
+  <div class="hint" id="optHint"></div>
+</div>
+
+<div id="warnHost"></div>
+<div class="pages" id="pagesHost"></div>
+
+<button class="btn hidden" id="goBtn">切成 A4</button>
+
+<div class="out hidden" id="outHost"></div>
+
+<footer>
+  开源免费（MIT）：<a href="https://github.com/oracis/a3-to-a4-split" target="_blank" rel="noopener">github.com/oracis/a3-to-a4-split</a>
+  · 一次几十套、不想自己动手，可以<a href="https://wbapp-gby0ngpwa3zwqbmb34cfjh.app.workbuddy.host/?sharecode=EVWIMGSIFI" target="_blank" rel="noopener">代切</a>
+  <details>
+    <summary>跟其他工具的区别在哪？</summary>
+    <p>
+      多数工具按页面中线切，但 A3 的双栏排版并不以中线对齐：左栏往往写过了中点几十 pt。
+      这里从 PDF 内容流里读出两栏的真实边框，切口取两条边框的中点，所以每一页都完整保留自己的边框和行末文字；
+      同时会裁掉左侧姓名学号竖条、清掉页边的黑色装订方块。
+    </p>
+  </details>
+</footer>
+
+</div>
+
+<script src="vendor/pdf.min.js"></script>
+<script src="vendor/pdf-lib.min.js"></script>
+<script src="split_core.js"></script>
+<script>
+(function () {
+  'use strict';
+  var $ = function (id) { return document.getElementById(id); };
+  var drop = $('drop'), fileInput = $('file');
+  var pagesHost = $('pagesHost'), outHost = $('outHost'), goBtn = $('goBtn');
+  var optPanel = $('optPanel'), optMarks = $('optMarks'), optStrip = $('optStrip'), optHint = $('optHint');
+  var warnHost = $('warnHost');
+
+  var PDFLib = window.PDFLib;
+  var splitter = window.createSplitter(PDFLib);
+  var srcBytes = null, fileName = '', analysis = null, overrides = {}, pdfDoc = null;
+  var busy = false;
+
+  // 开发态用外部 worker 文件；打包成单文件时 worker 源码内联在页面里，用 Blob 起
+  var workerEl = document.getElementById('pdfWorkerSrc');
+  if (workerEl) {
+    pdfjsLib.GlobalWorkerOptions.workerSrc =
+      URL.createObjectURL(new Blob([workerEl.textContent], { type: 'text/javascript' }));
+  } else {
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'vendor/pdf.worker.min.js';
+  }
+
+  /* ---------- 选择文件 ---------- */
+
+  drop.addEventListener('click', function () { if (!busy) fileInput.click(); });
+  ['dragenter', 'dragover'].forEach(function (ev) {
+    drop.addEventListener(ev, function (e) { e.preventDefault(); drop.classList.add('over'); });
+  });
+  ['dragleave', 'drop'].forEach(function (ev) {
+    drop.addEventListener(ev, function (e) { e.preventDefault(); drop.classList.remove('over'); });
+  });
+  drop.addEventListener('drop', function (e) {
+    var f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+    if (f) takeFile(f);
+  });
+  fileInput.addEventListener('change', function () {
+    if (fileInput.files && fileInput.files[0]) takeFile(fileInput.files[0]);
+  });
+
+  function showErr(msg) {
+    warnHost.innerHTML = '';
+    var d = document.createElement('div');
+    d.className = 'err-box';
+    d.textContent = msg;
+    warnHost.appendChild(d);
+  }
+  function showWarns(list) {
+    warnHost.innerHTML = '';
+    if (!list || !list.length) return;
+    var d = document.createElement('div');
+    d.className = 'warn-box';
+    d.textContent = '注意：' + list.join('；');
+    warnHost.appendChild(d);
+  }
+
+  function takeFile(f) {
+    if (busy) return;
+    var name = (f.name || '').toLowerCase();
+    if (/\.(doc|docx|wps|wpt)$/.test(name)) {
+      showErr('浏览器里没法直接读 Word。\n请在 Word 或 WPS 里「另存为 PDF」，再把 PDF 拖进来（多一步，但结果是矢量的，最清晰）。');
+      return;
+    }
+    if (!/\.pdf$/.test(name) && f.type !== 'application/pdf') {
+      showErr('只支持 PDF。当前文件：' + f.name);
+      return;
+    }
+    if (f.size > 80 * 1024 * 1024) {
+      showErr('文件超过 80MB，浏览器里处理可能卡住。建议先拆分或压缩。');
+      return;
+    }
+    fileName = f.name || 'document.pdf';
+    var reader = new FileReader();
+    reader.onload = function () {
+      srcBytes = new Uint8Array(reader.result);
+      start();
+    };
+    reader.onerror = function () { showErr('读取文件失败：' + (reader.error && reader.error.message)); };
+    reader.readAsArrayBuffer(f);
+  }
+
+  function markDropLoaded(name) {
+    drop.classList.add('loaded');
+    drop.innerHTML = '';
+    var line = document.createElement('div');
+    line.className = 'small';
+    var b = document.createElement('b');
+    b.textContent = name;
+    line.appendChild(b);
+    line.appendChild(document.createTextNode('　已载入 · 点这里换一个文件'));
+    drop.appendChild(line);
+  }
+
+  /* ---------- 分析 + 预览 ---------- */
+
+  async function start() {
+    busy = true;
+    warnHost.innerHTML = '';
+    pagesHost.innerHTML = '';
+    outHost.className = 'out hidden';
+    outHost.innerHTML = '';
+    goBtn.classList.add('hidden');
+    warnHost.innerHTML = '';
+    var tip = document.createElement('div');
+    tip.className = 'panel';
+    tip.textContent = '正在分析页面…';
+    pagesHost.appendChild(tip);
+
+    try {
+      markDropLoaded(fileName);
+      pdfDoc = await pdfjsLib.getDocument({ data: srcBytes.slice() }).promise;
+      if (pdfDoc.numPages > 40) throw new Error('PDF 有 ' + pdfDoc.numPages + ' 页，浏览器版本建议单次不超过 40 页');
+      await refresh();
+    } catch (e) {
+      showErr('打不开这个 PDF：' + (e && e.message ? e.message : e));
+      pagesHost.innerHTML = '';
+    } finally {
+      busy = false;
+    }
+  }
+
+  async function refresh() {
+    var opts = { keepMarks: !optMarks.checked, keepStrip: !optStrip.checked };
+    analysis = await splitter.analyze(srcBytes, opts);
+    overrides = {};
+    optPanel.classList.remove('hidden');
+    showWarns(analysis.warnings);
+    indexHint();
+    await renderPages();
+    goBtn.textContent = '切成 ' + (analysis.pageCount * 2) + ' 页 A4';
+    goBtn.classList.remove('hidden');
+  }
+
+  function indexHint() {
+    var withStrip = analysis.pages.filter(function (p) { return p.stripRight != null; }).length;
+    var marks = analysis.pages.reduce(function (s, p) { return s + (p.marksRemoved || 0); }, 0);
+    optHint.textContent = '检测到 ' + analysis.pageCount + ' 张 A3（将输出 ' +
+      (analysis.pageCount * 2) + ' 页 A4）· 左侧竖条 ' + (withStrip || '无') +
+      ' 页 · 黑色小方块 ' + marks + ' 个';
+  }
+
+  async function renderPageToCanvas(pdf, pageNum, canvas, targetW) {
+    var page = await pdf.getPage(pageNum);
+    var base = page.getViewport({ scale: 1 });
+    var dpr = Math.min(window.devicePixelRatio || 1, 2);
+    var scale = (targetW / base.width) * dpr;
+    var vp = page.getViewport({ scale: scale });
+    canvas.width = Math.ceil(vp.width);
+    canvas.height = Math.ceil(vp.height);
+    await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
+  }
+
+  async function renderPages() {
+    pagesHost.innerHTML = '';
+    var targetW = Math.min(pagesHost.clientWidth || 800, 780) - 2;
+
+    for (var i = 0; i < analysis.pages.length; i++) {
+      var info = analysis.pages[i];
+      var card = document.createElement('div');
+      card.className = 'pg';
+
+      var head = document.createElement('div');
+      head.className = 'pg-head';
+      head.innerHTML = '<span><b>第 ' + (i + 1) + ' 页</b>　' +
+        info.width.toFixed(0) + '×' + info.height.toFixed(0) + ' pt</span>' +
+        '<span>切口 x = <b class="cutval">' + info.boundary.toFixed(1) + '</b> pt</span>';
+      card.appendChild(head);
+
+      var thumb = document.createElement('div');
+      thumb.className = 'thumb';
+      var canvas = document.createElement('canvas');
+      thumb.appendChild(canvas);
+      card.appendChild(thumb);
+
+      // 切口位置按比例画在缩略图上
+      var line = document.createElement('div');
+      line.className = 'cutline';
+      thumb.appendChild(line);
+
+      var nudge = document.createElement('div');
+      nudge.className = 'nudge';
+      var range = document.createElement('input');
+      range.type = 'range';
+      range.min = String(info.boundary - 30);
+      range.max = String(info.boundary + 30);
+      range.step = '0.5';
+      range.value = String(info.boundary);
+      var val = document.createElement('span');
+      val.className = 'val';
+      val.textContent = info.boundary.toFixed(1) + ' pt';
+      var reset = document.createElement('button');
+      reset.type = 'button';
+      reset.textContent = '复位';
+      nudge.appendChild(range); nudge.appendChild(val); nudge.appendChild(reset);
+      card.appendChild(nudge);
+
+      pagesHost.appendChild(card);
+
+      (function (idx, info, thumbEl, lineEl, rangeEl, valEl, headEl) {
+        function place(v) {
+          var pct = ((v - info.mediaBox.x0) / info.width) * 100;
+          lineEl.style.left = pct.toFixed(3) + '%';
+          valEl.textContent = v.toFixed(1) + ' pt';
+          headEl.querySelector('.cutval').textContent = v.toFixed(1);
+          if (Math.abs(v - info.boundary) < 0.26) delete overrides[idx];
+          else overrides[idx] = v;
+        }
+        place(info.boundary);
+        rangeEl.addEventListener('input', function () { place(parseFloat(rangeEl.value)); });
+        reset.addEventListener('click', function () {
+          rangeEl.value = String(info.boundary);
+          place(info.boundary);
+        });
+      })(i, info, thumb, line, range, val, head);
+
+      await renderPageToCanvas(pdfDoc, i + 1, canvas, targetW);
+    }
+  }
+
+  /* ---------- 切分 ---------- */
+
+  goBtn.addEventListener('click', async function () {
+    if (busy || !srcBytes) return;
+    busy = true;
+    goBtn.disabled = true;
+    var old = goBtn.textContent;
+    goBtn.textContent = '正在切分…';
+    outHost.className = 'out';
+    outHost.innerHTML = '';
+
+    try {
+      var t0 = performance.now();
+      var opts = {
+        boundary: overrides,
+        keepMarks: !optMarks.checked,
+        keepStrip: !optStrip.checked
+      };
+      var res = await splitter.splitPdf(srcBytes, opts);
+      var ms = Math.round(performance.now() - t0);
+      await showResult(res, ms);
+    } catch (e) {
+      showErr('切分失败：' + (e && e.message ? e.message : e));
+    } finally {
+      goBtn.disabled = false;
+      goBtn.textContent = old;
+      busy = false;
+    }
+  });
+
+  async function showResult(res, ms) {
+    var blob = new Blob([res.bytes], { type: 'application/pdf' });
+    var url = URL.createObjectURL(blob);
+    var outName = fileName.replace(/\.pdf$/i, '') + '-A4.pdf';
+    var kb = Math.round(res.bytes.length / 1024);
+
+    var ok = document.createElement('div');
+    ok.className = 'ok-box';
+    ok.innerHTML = '已生成 <b>' + res.pageCount + ' 页 A4</b>（' + kb + ' KB，用时 ' +
+      (ms / 1000).toFixed(1) + ' 秒）。页面为 595.32×842.04 pt，按 A4 原尺寸打印即可，不要选「适合页面」。';
+    outHost.appendChild(ok);
+
+    var a = document.createElement('a');
+    a.className = 'btn';
+    a.href = url;
+    a.download = outName;
+    a.textContent = '下载 ' + outName;
+    a.style.textAlign = 'center';
+    a.style.textDecoration = 'none';
+    outHost.appendChild(a);
+
+    // 结果缩略图
+    var strip = document.createElement('div');
+    strip.className = 'out-strip';
+    strip.style.marginTop = '14px';
+    outHost.appendChild(strip);
+    try {
+      var outPdf = await pdfjsLib.getDocument({ data: res.bytes.slice() }).promise;
+      for (var i = 1; i <= outPdf.numPages; i++) {
+        var fig = document.createElement('figure');
+        var cv = document.createElement('canvas');
+        fig.appendChild(cv);
+        var cap = document.createElement('figcaption');
+        cap.textContent = '第 ' + i + ' 页';
+        fig.appendChild(cap);
+        strip.appendChild(fig);
+        await renderPageToCanvas(outPdf, i, cv, (strip.clientWidth / 4) - 12);
+      }
+    } catch (e) { /* 缩略图失败不影响下载 */ }
+
+    var det = document.createElement('details');
+    det.style.marginTop = '14px';
+    var sum = document.createElement('summary');
+    sum.textContent = '看一下切分参数';
+    det.appendChild(sum);
+    var pre = document.createElement('pre');
+    pre.className = 'report';
+    pre.textContent = res.report.join('\n');
+    det.appendChild(pre);
+    outHost.appendChild(det);
+  }
+
+  /* ---------- 选项变化时重新分析（保留手动切口） ---------- */
+  [optMarks, optStrip].forEach(function (el) {
+    el.addEventListener('change', async function () {
+      if (!srcBytes || busy) return;
+      busy = true;
+      try {
+        await refresh();          // 切口会按新选项重新识别，手动微调一并清空
+      } catch (e) { showErr('重新分析失败：' + e.message); }
+      finally { busy = false; }
+    });
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,5 +1,10 @@
 ---
 name: a3-to-a4-split
+slug: a3-to-a4-split
+displayName: A3 试卷拆 A4
+version: 1.0.0
+category: office-efficiency
+subCategories: [office-pdf, office-doc, office-automation]
 description: 把「两页 A4 拼在一张 A3 横向纸」的文档（试卷、讲义、教辅、公文）无损拆成独立 A4 页。输入可以是 Word（.docx/.doc）或 PDF，输出标准 A4 竖版矢量 PDF 与高清 PNG。当用户提到 A3 分割、A3 拆 A4、试卷切分、把一张大纸分成两页、PDF 切两半、打印时字被切掉或串页、公式发虚有重影、页面左边有姓名学号要裁掉、页顶有黑色裁切块时使用。
 agent_created: true
 ---

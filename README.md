@@ -8,6 +8,15 @@
 - 自动裁掉左侧「姓名·学号」竖条、页边黑色裁切小方块
 - 纯 Python 标准库，零第三方依赖
 
+## 安装到 WorkBuddy
+
+已发布到 SkillHub（腾讯技能市场）：`@user_bd60432e/a3-to-a4-split`
+
+```bash
+# 在 WorkBuddy 里说「安装 a3-to-a4-split」，或直接给 AI 这句：
+请根据 https://skillhub.cn/install/skillhub.md 安装 @user_bd60432e/a3-to-a4-split
+```
+
 ## 两种用法
 
 ### 1. 网页版（推荐，双击即用）

@@ -8,6 +8,8 @@
 - 自动裁掉左侧「姓名·学号」竖条、页边黑色裁切小方块
 - 纯 Python 标准库，零第三方依赖
 
+> 不想自己跑？有代切服务，在线说明页：https://wbapp-gby0ngpwa3zwqbmb34cfjh.app.workbuddy.host/?sharecode=EVWIMGSIFI
+
 ## 安装到 WorkBuddy
 
 已发布到 SkillHub（腾讯技能市场）：`@user_bd60432e/a3-to-a4-split`
